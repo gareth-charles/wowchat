@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.StrictLogging
 import com.vdurmont.emoji.EmojiParser
 import net.dv8tion.jda.api.JDABuilder
 import net.dv8tion.jda.api.JDA.Status
-import net.dv8tion.jda.api.entities.{Activity, ChannelType, MessageType}
+import net.dv8tion.jda.api.entities.{Activity, ChannelType, MessageType, Role}
 import net.dv8tion.jda.api.entities.Activity.ActivityType
 import net.dv8tion.jda.api.events.{ShutdownEvent, StatusChangeEvent}
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent
@@ -235,6 +235,16 @@ class Discord(discordConnectionCallback: CommonConnectionCallback) extends Liste
     val channelId = channel.getId
     val channelName = event.getChannel.getName.toLowerCase
     val effectiveName = event.getMember.getEffectiveName
+    val ignoredRoles = Global.config.discord.ignoredRoles
+    val memberRoles = event.getMember.getRoles.asScala
+    for(memberRole <- memberRoles) {
+      val roleName = memberRole.getName.toLowerCase
+      if (ignoredRoles.contains(roleName)) {
+        logger.info(s"Discard message for [$effectiveName] due to role [$roleName]")
+        return
+      }
+    }
+
     val message = (sanitizeMessage(event.getMessage.getContentDisplay) +: event.getMessage.getAttachments.asScala.map(_.getUrl))
       .filter(_.nonEmpty)
       .mkString(" ")
@@ -295,6 +305,16 @@ class Discord(discordConnectionCallback: CommonConnectionCallback) extends Liste
         })
       )
   }
+
+  // def isIgnoredByRole(memberRoles: List[Role]): Boolean = {
+  //   val ignoredRoles = Global.config.discord.ignored_roles
+  //   for (role <- memberRoles) {
+  //     if (ignoredRoles.contains(role.getName())) {
+  //       true
+  //     }
+  //   }
+  //   false
+  // }
 
   def shouldFilter(filtersConfig: Option[FiltersConfig], message: String): Boolean = {
     filtersConfig
